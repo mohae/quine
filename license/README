@@ -1,0 +1,5 @@
+All licenses are identified by their SPDX short identifier.
+
+Files ending with `notice` will have their contents placed in the `main.go` file with any of the variable fields replaced with the provided values. If the value of any variable is unknown, no replacement of that variable will be done.
+
+Files ending with `cli` will have the text displayed when the application starts. If the `cli` notice specifies flags for additional informatin, those flags will be added to the application along with the funcs required to implement them.
