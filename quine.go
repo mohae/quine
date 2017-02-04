@@ -64,25 +64,37 @@ func generate() int {
 }
 
 func writeMain(buf *bytes.Buffer) error {
-	_, err := buf.WriteString("package main\nimport (\n\"flag\"\n\"path/filepath\"\n)\n\nvar app = filepath.Base(os.Args[0]) // name of application\n")
+	_, err := buf.WriteString("package main\nimport (\n\"flag\"\n\"path/filepath\"\n\"os\"\n)\n\nvar app = filepath.Base(os.Args[0]) // name of application\n")
 	if err != nil {
 		return err
 	}
 
+	// config
+	_, err = buf.WriteString("var cfg Config\n\ntype Config struct {\nLogFile string // output destination for logs; stderr is default\nf *os.File // logfile handle for close; this will be nil if output is stderr\n}\n")
+	if err != nil {
+		return err
+	}
+
+	// init
+	_, err = buf.WriteString("\nfunc init() {\nflag.StringVar(&cfg.LogDst, \"logfile\", \"stderr\", \"output destination for logs\")\n}\n")
+	if err != nil {
+		return err
+	}
+
+	// main
 	_, err = buf.WriteString("\nfunc main() {\n// Process flags\nparseFlags()\nos.Exit(")
 	if err != nil {
 		return err
 	}
-
 	_, err = buf.WriteString(app)
 	if err != nil {
 		return err
 	}
-
 	_, err = buf.WriteString("Main())\n}")
 	if err != nil {
 		return err
 	}
+
 	// fmt the code
 	fmtd, err := format.Source(buf.Bytes())
 	if err != nil {
@@ -117,7 +129,7 @@ func writeAppFile(buf *bytes.Buffer) error {
 		return fmt.Errorf("%s: %s", appFile, err)
 	}
 
-	_, err = buf.WriteString("package main\nimport(\n\"fmt\"\n)\n")
+	_, err = buf.WriteString("package main\nimport(\n\"fmt\"\n\"log\"\n\"os\"\n)\n")
 	if err != nil {
 		return err
 	}
@@ -137,7 +149,7 @@ func writeAppFile(buf *bytes.Buffer) error {
 		return err
 	}
 
-	_, err = buf.WriteString("Main() int {\nfmt.Printf(\"%s: hello, world\\n\", app)\nreturn 0\n}\n")
+	_, err = buf.WriteString("Main() int {\nif cfg.f != nil {\ndefer f.Close() // make sure the logfile is closed if there is one\n}\n\nfmt.Printf(\"%s: hello, world\\n\", app)\n\nreturn 0\n}\n")
 	if err != nil {
 		return err
 	}
@@ -180,7 +192,17 @@ func writeParseFlag(buf *bytes.Buffer) error {
 		return fmt.Errorf("parseFlag func: %s", err)
 	}
 
-	_, err = buf.WriteString("\nfunc parseFlag() {\nflag.Parse()\n}")
+	_, err = buf.WriteString("\nfunc parseFlag() {\nvar err error\n\nflag.Parse()\n\n")
+	if err != nil {
+		return fmt.Errorf("parseFlag func: %s", err)
+	}
+
+	// log
+	_, err = buf.WriteString("if cfg.LogFile != \"\" && cfg.LogFile != \"stdout\" {  // open the logfile if one is specified\ncfg.f, err = os.FileOpen(cfg.LogFile, os.O_CREATE|os.O_APPEND|os.O_RDWR, 0664)\n")
+	if err != nil {
+		return fmt.Errorf("parseFlag func: %s", err)
+	}
+	_, err = buf.WriteString("if err != nil {\nfmt.Fprintf(os.Stderr, \"%s: open logfile: %s\", app, err)\nos.Exit(1)\n}\n}\n}\n")
 	if err != nil {
 		return fmt.Errorf("parseFlag func: %s", err)
 	}
