@@ -76,7 +76,7 @@ func writeMain(buf *bytes.Buffer) error {
 	}
 
 	// init
-	_, err = buf.WriteString("\nfunc init() {\nflag.StringVar(&cfg.LogDst, \"logfile\", \"stderr\", \"output destination for logs\")\n}\n")
+	_, err = buf.WriteString("\nfunc init() {\nflag.StringVar(&cfg.LogDst, \"logfile\", \"stderr\", \"output destination for logs\")\n\nlog.SetPrefix(app + \": \")\n}\n")
 	if err != nil {
 		return err
 	}

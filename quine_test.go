@@ -38,6 +38,8 @@ type Config struct {
 
 func init() {
 	flag.StringVar(&cfg.LogDst, "logfile", "stderr", "output destination for logs")
+
+	log.SetPrefix(app + ": ")
 }
 
 func main() {
