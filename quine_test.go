@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -10,12 +9,12 @@ import (
 
 func TestMain(m *testing.M) {
 	var err error
-	app = "test"
+	app.Name = "test"
 	quinePath, err = os.Getwd()
 	if err != nil {
 		panic(err)
 	}
-	path, err = ioutil.TempDir("", "quine")
+	app.Path, err = ioutil.TempDir("", "quine")
 	if err != nil {
 		panic(err)
 	}
@@ -52,7 +51,6 @@ os.Exit(testMain())
 `
 
 func TestWriteMain(t *testing.T) {
-	var buf bytes.Buffer
 	tests := []struct {
 		license  License
 		expected string
@@ -116,13 +114,13 @@ You should have received a copy of the GNU Lesser General Public License along w
 `},
 	}
 	for _, test := range tests {
-		licenseType = test.license
-		err := writeMain(&buf)
+		app.License = test.license
+		err := app.WriteMain()
 		if err != nil {
 			t.Errorf("unexpected error: %s", err)
 		}
 		// check the written file
-		b, err := ioutil.ReadFile(filepath.Join(path, mainFile))
+		b, err := ioutil.ReadFile(filepath.Join(app.Path, mainFile))
 		if string(b) != test.expected+expectedMain {
 			t.Errorf("got %s\nwant %s", string(b), test.expected+expectedMain)
 		}
@@ -130,7 +128,6 @@ You should have received a copy of the GNU Lesser General Public License along w
 }
 
 func TestWriteAppFile(t *testing.T) {
-	var buf bytes.Buffer
 	expected := `package main
 
 import (
@@ -166,12 +163,12 @@ func testMain() int {
 	return 0
 }
 `
-	err := writeAppFile(&buf)
+	err := app.WriteAppFile()
 	if err != nil {
 		t.Errorf("unexpected error: %s", err)
 	}
 	// check the written file
-	b, err := ioutil.ReadFile(filepath.Join(path, app+"_main.go"))
+	b, err := ioutil.ReadFile(filepath.Join(app.Path, app.Name+"_main.go"))
 	if string(b) != expected {
 		t.Errorf("got %s\nwant %s", string(b), expected)
 	}

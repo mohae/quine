@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"flag"
 	"fmt"
 	"go/format"
@@ -10,17 +9,15 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-
-	"github.com/mohae/linewrap"
 )
 
 func parseFlags() {
 	flag.Parse()
 	var err error
-	if path == "" {
-		path, err = os.Getwd()
+	if app.Path == "" {
+		app.Path, err = os.Getwd()
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "%s error: get WD: ", app, err)
+			fmt.Fprintf(os.Stderr, "%s error: get WD: ", app.Name, err)
 			os.Exit(1)
 		}
 	} else {
@@ -30,66 +27,58 @@ func parseFlags() {
 		if gop == "" { // if it wasn't set, use Go's default path (1.8) + src
 			gop = "$HOME/go/src"
 		}
-		path = filepath.Join(gop, path)
+		app.Path = filepath.Join(gop, app.Path)
 	}
 	// set the app name, if it isn't set
-	if app == "" {
-		app = filepath.Base(path)
+	if app.Name == "" {
+		app.Name = filepath.Base(app.Path)
 	}
 
-	if cmdDir { // adjust output path if there is going to be a command directory
-		path = filepath.Join(path, "cmd", app)
+	if app.CmdDir { // adjust output path if there is going to be a command directory
+		app.Path = filepath.Join(app.Path, "cmd", app.Name)
 	}
 
-	licenseType, err = LicenseFromString(license)
+	app.License, err = LicenseFromString(license)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "%s error: %s", app, err)
+		fmt.Fprintf(os.Stderr, "%s error: %s", app.Name, err)
 		os.Exit(1)
 	}
 }
 
 // generate does the actual work of creating the main.go and whatever else is
 // needed
-func generate() int {
+func (a *App) Generate() int {
 	// If a license was specified, copy it to the path.
-	if licenseType != None {
-		err := copyLicense()
+	if a.License != None {
+		err := a.CopyLicense()
 		if err != nil {
-			log.Printf("copy %s: error: %s", licenseType, err)
-			return 1
-		}
-
-		if err != nil {
-			log.Printf("copy %s license: error: %s", licenseType, err)
+			log.Printf("copy %s: error: %s", a.License, err)
 			return 1
 		}
 	}
 
-	// build everything first in a buffer so it can be fmt'd before writing to file.
-	var buf bytes.Buffer
-
 	// these are in separate funcs for testability
-	err := writeMain(&buf)
+	err := a.WriteMain()
 	if err != nil {
 		log.Printf("%s: error: %s", mainFile, err)
 		return 1
 	}
 
-	buf.Reset()
+	a.buf.Reset()
 
-	err = writeAppFile(&buf)
+	err = a.WriteAppFile()
 	if err != nil {
-		log.Printf("%s: error: %s", app+"_main.go", err)
+		log.Printf("%s: error: %s", a.Name+"_main.go", err)
 		return 1
 	}
 
 	return 0
 }
 
-func writeMain(buf *bytes.Buffer) error {
+func (a *App) WriteMain() error {
 	// if a license was specified, open its notice file and write it to main.go
-	if licenseType != None {
-		noticeFile := filepath.Join(quinePath, licenseDir, licenseType.ID()+".notice")
+	if a.License != None {
+		noticeFile := filepath.Join(quinePath, licenseDir, a.License.ID()+".notice")
 		f, err := os.Open(noticeFile)
 		if err != nil {
 			if os.IsNotExist(err) { // not all licenses have notices
@@ -99,53 +88,53 @@ func writeMain(buf *bytes.Buffer) error {
 		}
 		defer f.Close()
 		// TODO do element replacement for the notices that have that.
-		_, err = io.Copy(buf, f)
+		_, err = io.Copy(&a.buf, f)
 		if err != nil {
 			return fmt.Errorf("copy %s: %s", noticeFile, err)
 		}
-		buf.WriteString("\n\n")
+		a.buf.WriteString("\n\n")
 	}
 
 writeMain:
-	_, err := buf.WriteString("package main\nimport (\n\"flag\"\n\"path/filepath\"\n\"os\"\n)\n\nvar app = filepath.Base(os.Args[0]) // name of application\n")
+	_, err := a.buf.WriteString("package main\nimport (\n\"flag\"\n\"path/filepath\"\n\"os\"\n)\n\nvar app = filepath.Base(os.Args[0]) // name of application\n")
 	if err != nil {
 		return err
 	}
 
 	// config
-	_, err = buf.WriteString("var cfg Config\n\ntype Config struct {\nLogFile string // output destination for logs; stderr is default\nf *os.File // logfile handle for close; this will be nil if output is stderr\n}\n")
+	_, err = a.buf.WriteString("var cfg Config\n\ntype Config struct {\nLogFile string // output destination for logs; stderr is default\nf *os.File // logfile handle for close; this will be nil if output is stderr\n}\n")
 	if err != nil {
 		return err
 	}
 
 	// init
-	_, err = buf.WriteString("\nfunc init() {\nflag.StringVar(&cfg.LogDst, \"logfile\", \"stderr\", \"output destination for logs\")\n\nlog.SetPrefix(app + \": \")\n}\n")
+	_, err = a.buf.WriteString("\nfunc init() {\nflag.StringVar(&cfg.LogDst, \"logfile\", \"stderr\", \"output destination for logs\")\n\nlog.SetPrefix(app + \": \")\n}\n")
 	if err != nil {
 		return err
 	}
 
 	// main
-	_, err = buf.WriteString("\nfunc main() {\n// Process flags\nparseFlags()\nos.Exit(")
+	_, err = a.buf.WriteString("\nfunc main() {\n// Process flags\nparseFlags()\nos.Exit(")
 	if err != nil {
 		return err
 	}
-	_, err = buf.WriteString(app)
+	_, err = a.buf.WriteString(a.Name)
 	if err != nil {
 		return err
 	}
-	_, err = buf.WriteString("Main())\n}")
+	_, err = a.buf.WriteString("Main())\n}")
 	if err != nil {
 		return err
 	}
 
 	// fmt the code
-	fmtd, err := format.Source(buf.Bytes())
+	fmtd, err := format.Source(a.buf.Bytes())
 	if err != nil {
 		return fmt.Errorf("fmt source: %s", err)
 	}
 
 	// open the file and write
-	f, err := os.OpenFile(filepath.Join(path, mainFile), os.O_CREATE|os.O_TRUNC|os.O_RDWR, 0664)
+	f, err := os.OpenFile(filepath.Join(a.Path, mainFile), os.O_CREATE|os.O_TRUNC|os.O_RDWR, 0664)
 	if err != nil {
 		return fmt.Errorf("open failed: %s", err)
 	}
@@ -156,13 +145,13 @@ writeMain:
 		return fmt.Errorf("write failed: %s", err)
 	}
 
-	fmt.Printf("%s: %d bytes were written to %s\n", exe, n, filepath.Join(path, mainFile))
+	fmt.Printf("%s: %d bytes were written to %s\n", exe, n, filepath.Join(a.Path, mainFile))
 	return nil
 }
 
 // write the app.go file.
-func writeAppFile(buf *bytes.Buffer) error {
-	appFile := filepath.Join(path, app+"_main.go")
+func (a *App) WriteAppFile() error {
+	appFile := filepath.Join(a.Path, a.Name+"_main.go")
 	// if the app file already exists; don't modify to prevent overwriting any user code.
 	_, err := os.Stat(appFile)
 	if err == nil {
@@ -172,33 +161,33 @@ func writeAppFile(buf *bytes.Buffer) error {
 		return fmt.Errorf("%s: %s", appFile, err)
 	}
 
-	_, err = buf.WriteString("package main\nimport(\n\"fmt\"\n\"log\"\n\"os\"\n)\n")
+	_, err = a.buf.WriteString("package main\nimport(\n\"fmt\"\n\"log\"\n\"os\"\n)\n")
 	if err != nil {
 		return err
 	}
 
-	err = writeParseFlag(buf)
+	err = a.WriteParseFlag()
 	if err != nil {
 		return err
 	}
 
-	_, err = buf.WriteString("\n\nfunc ")
+	_, err = a.buf.WriteString("\n\nfunc ")
 	if err != nil {
 		return err
 	}
 
-	_, err = buf.WriteString(app)
+	_, err = a.buf.WriteString(a.Name)
 	if err != nil {
 		return err
 	}
 
-	_, err = buf.WriteString("Main() int {\nif cfg.f != nil {\ndefer f.Close() // make sure the logfile is closed if there is one\n}\n\nfmt.Printf(\"%s: hello, world\\n\", app)\n\nreturn 0\n}\n")
+	_, err = a.buf.WriteString("Main() int {\nif cfg.f != nil {\ndefer f.Close() // make sure the logfile is closed if there is one\n}\n\nfmt.Printf(\"%s: hello, world\\n\", app)\n\nreturn 0\n}\n")
 	if err != nil {
 		return err
 	}
 
 	// fmt the code
-	fmtd, err := format.Source(buf.Bytes())
+	fmtd, err := format.Source(a.buf.Bytes())
 	if err != nil {
 		return fmt.Errorf("fmt source: %s", err)
 	}
@@ -220,32 +209,29 @@ func writeAppFile(buf *bytes.Buffer) error {
 }
 
 // write the parseFlag func: parseFlag os.Exit's on any error.
-func writeParseFlag(buf *bytes.Buffer) error {
-	lw := linewrap.New()
-	lw.Indent = true
-	lw.IndentVal = "// "
+func (a *App) WriteParseFlag() error {
 	cmt := "// parseFlag handles flag parsing, validation, and any side affects of flag states. Errors or invalid states should result in printing a message to os.Stderr and an os.Exit() with a non-zero int."
-	cmt, err := lw.Line(cmt)
+	cmt, err := a.wrapper.Line(cmt)
 	if err != nil {
 		return fmt.Errorf("parseFlag func: %s", err)
 	}
 
-	_, err = buf.WriteString(cmt)
+	_, err = a.buf.WriteString(cmt)
 	if err != nil {
 		return fmt.Errorf("parseFlag func: %s", err)
 	}
 
-	_, err = buf.WriteString("\nfunc parseFlag() {\nvar err error\n\nflag.Parse()\n\n")
+	_, err = a.buf.WriteString("\nfunc parseFlag() {\nvar err error\n\nflag.Parse()\n\n")
 	if err != nil {
 		return fmt.Errorf("parseFlag func: %s", err)
 	}
 
 	// log
-	_, err = buf.WriteString("if cfg.LogFile != \"\" && cfg.LogFile != \"stdout\" {  // open the logfile if one is specified\ncfg.f, err = os.FileOpen(cfg.LogFile, os.O_CREATE|os.O_APPEND|os.O_RDWR, 0664)\n")
+	_, err = a.buf.WriteString("if cfg.LogFile != \"\" && cfg.LogFile != \"stdout\" {  // open the logfile if one is specified\ncfg.f, err = os.FileOpen(cfg.LogFile, os.O_CREATE|os.O_APPEND|os.O_RDWR, 0664)\n")
 	if err != nil {
 		return fmt.Errorf("parseFlag func: %s", err)
 	}
-	_, err = buf.WriteString("if err != nil {\nfmt.Fprintf(os.Stderr, \"%s: open logfile: %s\", app, err)\nos.Exit(1)\n}\n}\n}\n")
+	_, err = a.buf.WriteString("if err != nil {\nfmt.Fprintf(os.Stderr, \"%s: open logfile: %s\", app, err)\nos.Exit(1)\n}\n}\n}\n")
 	if err != nil {
 		return fmt.Errorf("parseFlag func: %s", err)
 	}
@@ -254,8 +240,8 @@ func writeParseFlag(buf *bytes.Buffer) error {
 
 }
 
-func copyLicense() error {
-	lFile := strings.ToLower(licenseType.ID())
+func (a *App) CopyLicense() error {
+	lFile := strings.ToLower(a.License.ID())
 
 	srcFile := filepath.Join(quinePath, licenseDir, lFile)
 	src, err := os.Open(srcFile)
@@ -264,7 +250,7 @@ func copyLicense() error {
 	}
 	defer src.Close()
 
-	dstFile := filepath.Join(path, lFile)
+	dstFile := filepath.Join(a.Path, lFile)
 	dst, err := os.OpenFile(dstFile, os.O_CREATE|os.O_TRUNC|os.O_RDWR, 0664)
 	if err != nil {
 		return fmt.Errorf("open dest. file: %s", err)
@@ -278,5 +264,4 @@ func copyLicense() error {
 
 	fmt.Printf("%s copied to %s; %d bytes written\n", app, lFile, dstFile, n)
 	return nil
-
 }
