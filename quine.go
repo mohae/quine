@@ -5,9 +5,11 @@ import (
 	"flag"
 	"fmt"
 	"go/format"
+	"io"
 	"log"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/mohae/linewrap"
 )
@@ -18,7 +20,8 @@ func parseFlags() {
 	if path == "" {
 		path, err = os.Getwd()
 		if err != nil {
-			log.Fatalf("error: get WD: ", err)
+			fmt.Fprintf(os.Stderr, "%s error: get WD: ", app, err)
+			os.Exit(1)
 		}
 	} else {
 		// build it relative to GOPATH
@@ -37,11 +40,31 @@ func parseFlags() {
 	if cmdDir { // adjust output path if there is going to be a command directory
 		path = filepath.Join(path, "cmd", app)
 	}
+
+	licenseType, err = LicenseFromString(license)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%s error: %s", app, err)
+		os.Exit(1)
+	}
 }
 
 // generate does the actual work of creating the main.go and whatever else is
 // needed
 func generate() int {
+	// If a license was specified, copy it to the path.
+	if licenseType != None {
+		err := copyLicense()
+		if err != nil {
+			log.Printf("copy %s: error: %s", licenseType, err)
+			return 1
+		}
+
+		if err != nil {
+			log.Printf("copy %s license: error: %s", licenseType, err)
+			return 1
+		}
+	}
+
 	// build everything first in a buffer so it can be fmt'd before writing to file.
 	var buf bytes.Buffer
 
@@ -207,6 +230,33 @@ func writeParseFlag(buf *bytes.Buffer) error {
 		return fmt.Errorf("parseFlag func: %s", err)
 	}
 
+	return nil
+
+}
+
+func copyLicense() error {
+	lFile := strings.ToLower(licenseType.ID())
+
+	srcFile := filepath.Join(quinePath, "license", lFile)
+	src, err := os.Open(srcFile)
+	if err != nil {
+		return fmt.Errorf("open source file: %s", err)
+	}
+	defer src.Close()
+
+	dstFile := filepath.Join(path, lFile)
+	dst, err := os.OpenFile(dstFile, os.O_CREATE|os.O_TRUNC|os.O_RDWR, 0664)
+	if err != nil {
+		return fmt.Errorf("open dest. file: %s", err)
+	}
+	defer dst.Close()
+
+	n, err := io.Copy(dst, src)
+	if err != nil {
+		return fmt.Errorf("copy license from %s to %s: %s", srcFile, dstFile, err)
+	}
+
+	fmt.Printf("%s copied to %s; %d bytes written\n", app, lFile, dstFile, n)
 	return nil
 
 }
