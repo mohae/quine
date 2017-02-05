@@ -10,12 +10,13 @@ import (
 const mainFile = "main.go"
 
 var (
-	exe       = filepath.Base(os.Args[0]) // name of executable
-	app       string
-	path      string
-	license   string
-	quinePath string
-	cmdDir    bool
+	exe        = filepath.Base(os.Args[0]) // name of executable
+	app        string
+	path       string
+	license    string
+	quinePath  string
+	licenseDir = "license"
+	cmdDir     bool
 
 	licenseType License
 )
@@ -23,7 +24,8 @@ var (
 func init() {
 	quinePath = os.Getenv("QUINEPATH")
 	flag.StringVar(&app, "app", "", "name of the application; only use if it is different than the name of the repo")
-	flag.StringVar(&license, "license", "", "license for the project; use the SPDX short identifier for the language: https://spdx.org/licenses/")
+	flag.StringVar(&license, "license", "", "name of license for the project; use the SPDX short identifier for the language: https://spdx.org/licenses/")
+	flag.StringVar(&licenseDir, "licensedir", license, "the directory that the licenses are in; this is joined with the quinepath or WD to make the full path to the license directory")
 	flag.StringVar(&path, "path", "", "path of project repo, relative to $GOPATH/src; if empty the WD will be used")
 	flag.StringVar(&quinePath, "quinepath", quinePath, "path for quine application resources; e.g. license")
 	flag.BoolVar(&cmdDir, "cmd", true, "use a cmd directory for package main")

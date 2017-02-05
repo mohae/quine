@@ -87,7 +87,7 @@ func generate() int {
 }
 
 func writeMain(buf *bytes.Buffer) error {
-	_, err := buf.WriteString("package main\nimport (\n\"flag\"\n\"path/filepath\"\n\"os\"\n)\n\nvar app = filepath.Base(os.Args[0]) // name of application\n")
+	_, err = buf.WriteString("package main\nimport (\n\"flag\"\n\"path/filepath\"\n\"os\"\n)\n\nvar app = filepath.Base(os.Args[0]) // name of application\n")
 	if err != nil {
 		return err
 	}
@@ -237,7 +237,7 @@ func writeParseFlag(buf *bytes.Buffer) error {
 func copyLicense() error {
 	lFile := strings.ToLower(licenseType.ID())
 
-	srcFile := filepath.Join(quinePath, "license", lFile)
+	srcFile := filepath.Join(quinePath, licenseDir, lFile)
 	src, err := os.Open(srcFile)
 	if err != nil {
 		return fmt.Errorf("open source file: %s", err)
