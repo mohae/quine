@@ -87,7 +87,27 @@ func generate() int {
 }
 
 func writeMain(buf *bytes.Buffer) error {
-	_, err = buf.WriteString("package main\nimport (\n\"flag\"\n\"path/filepath\"\n\"os\"\n)\n\nvar app = filepath.Base(os.Args[0]) // name of application\n")
+	// if a license was specified, open its notice file and write it to main.go
+	if licenseType != None {
+		noticeFile := filepath.Join(quinePath, licenseDir, licenseType.ID()+".notice")
+		f, err := os.Open(noticeFile)
+		if err != nil {
+			if os.IsNotExist(err) { // not all licenses have notices
+				goto writeMain
+			}
+			return fmt.Errorf("open %s: %s", noticeFile, err) // return any other error
+		}
+		defer f.Close()
+		// TODO do element replacement for the notices that have that.
+		_, err = io.Copy(buf, f)
+		if err != nil {
+			return fmt.Errorf("copy %s: %s", noticeFile, err)
+		}
+		buf.WriteString("\n\n")
+	}
+
+writeMain:
+	_, err := buf.WriteString("package main\nimport (\n\"flag\"\n\"path/filepath\"\n\"os\"\n)\n\nvar app = filepath.Base(os.Args[0]) // name of application\n")
 	if err != nil {
 		return err
 	}
