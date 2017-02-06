@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"go/format"
 	"io"
+	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
@@ -64,8 +65,6 @@ func (a *App) Generate() int {
 		return 1
 	}
 
-	a.buf.Reset()
-
 	err = a.WriteAppFile()
 	if err != nil {
 		log.Printf("%s: error: %s", a.Name+"_main.go", err)
@@ -76,23 +75,32 @@ func (a *App) Generate() int {
 }
 
 func (a *App) WriteMain() error {
+	a.buf.Reset()
+
 	// if a license was specified, open its notice file and write it to main.go
 	if a.License != None {
-		noticeFile := filepath.Join(quinePath, licenseDir, a.License.ID()+".notice")
-		f, err := os.Open(noticeFile)
+		noticeFile := filepath.Join(quinePath, licenseDir, strings.ToLower(a.License.ID())+".notice")
+		b, err := ioutil.ReadFile(noticeFile)
 		if err != nil {
 			if os.IsNotExist(err) { // not all licenses have notices
 				goto writeMain
 			}
-			return fmt.Errorf("open %s: %s", noticeFile, err) // return any other error
+			return fmt.Errorf("read %s: %s", noticeFile, err) // return any other error		}
 		}
-		defer f.Close()
 		// TODO do element replacement for the notices that have that.
-		_, err = io.Copy(&a.buf, f)
+		a.wrapper.LineComment(true)
+		cmt, err := a.wrapper.Line(string(b))
 		if err != nil {
-			return fmt.Errorf("copy %s: %s", noticeFile, err)
+			return fmt.Errorf("formatting %s's standard license header as comment: %s", a.License.ID(), err)
 		}
-		a.buf.WriteString("\n\n")
+		_, err = a.buf.WriteString(cmt)
+		if err != nil {
+			return fmt.Errorf("write %s's standard license header comment: %s", err)
+		}
+		_, err = a.buf.WriteString("\n\n")
+		if err != nil {
+			return fmt.Errorf("write %s's standard license header comment: %s", err)
+		}
 	}
 
 writeMain:
@@ -151,6 +159,8 @@ writeMain:
 
 // write the app.go file.
 func (a *App) WriteAppFile() error {
+	a.buf.Reset()
+
 	appFile := filepath.Join(a.Path, a.Name+"_main.go")
 	// if the app file already exists; don't modify to prevent overwriting any user code.
 	_, err := os.Stat(appFile)
@@ -210,7 +220,7 @@ func (a *App) WriteAppFile() error {
 
 // write the parseFlag func: parseFlag os.Exit's on any error.
 func (a *App) WriteParseFlag() error {
-	cmt := "// parseFlag handles flag parsing, validation, and any side affects of flag states. Errors or invalid states should result in printing a message to os.Stderr and an os.Exit() with a non-zero int."
+	cmt := "parseFlag handles flag parsing, validation, and any side affects of flag states. Errors or invalid states should result in printing a message to os.Stderr and an os.Exit() with a non-zero int."
 	cmt, err := a.wrapper.Line(cmt)
 	if err != nil {
 		return fmt.Errorf("parseFlag func: %s", err)

@@ -43,8 +43,7 @@ func init() {
 	log.SetFlags(0)
 	log.SetPrefix(exe + ": ")
 	app.wrapper = linewrap.New()
-	app.wrapper.Indent = true
-	app.wrapper.IndentVal = "// "
+	app.wrapper.LineComment(true)
 }
 
 func main() {
