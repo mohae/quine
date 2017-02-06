@@ -1,4 +1,6 @@
 # quine
+WIP: generates the skeleton app but more work do be done for the final (hopefully) form. See the TODO section.
+
 Quine isn't actually a quine.
 
 In William Gibson's "Burning Chrome", Bobby Quine is a software expert and part of the duo that burns Chrome.
@@ -25,3 +27,10 @@ Generate an application named foo:
 Generate an application named foo
 
 ## Flags
+
+
+## TODO:  
+* Add Usage function
+* Add support for defining flags and things necessary for license notice replacement.  
+* For license notices do replacements of applicable fields.  
+* Add CLI notice for applicable licenses
