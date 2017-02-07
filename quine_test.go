@@ -42,6 +42,8 @@ func init() {
 }
 
 func main() {
+	flag.usage = Usage
+
 	// Process flags
 	FlagParse()
 
@@ -184,6 +186,17 @@ import (
 	"fmt"
 	"os"
 )
+
+// usage is the usage func for flag.Usage.
+func usage() {
+	fmt.Fprint(os.Stderr, "Usage:\n")
+	fmt.Fprintf(os.Stderr, "  %s [FLAGS] \n", app)
+	fmt.Fprint(os.Stderr, "\n")
+	fmt.Fprintf(os.Stderr, "Insert information about %s here\n", app)
+	fmt.Fprint(os.Stderr, "\n")
+	fmt.Fprint(os.Stderr, "Options:\n")
+	flag.PrintDefaults()
+}
 
 // FlagParse handles flag parsing, validation, and any side affects of flag
 // states. Errors or invalid states should result in printing a message to

@@ -122,7 +122,7 @@ writeMain:
 	}
 
 	// main
-	_, err = a.buf.WriteString("\nfunc main() {\n// Process flags\nFlagParse()\n\nos.Exit(")
+	_, err = a.buf.WriteString("\nfunc main() {\nflag.usage = Usage\n\n// Process flags\nFlagParse()\n\nos.Exit(")
 	if err != nil {
 		return err
 	}
@@ -171,7 +171,12 @@ func (a *App) WriteAppFile() error {
 		return fmt.Errorf("%s: %s", appFile, err)
 	}
 
-	_, err = a.buf.WriteString("package main\nimport(\n\"flag\"\n\"fmt\"\n\"os\"\n)\n")
+	_, err = a.buf.WriteString("package main\n\nimport(\n\"flag\"\n\"fmt\"\n\"os\"\n)\n")
+	if err != nil {
+		return err
+	}
+
+	err = a.WriteUsage()
 	if err != nil {
 		return err
 	}
@@ -215,6 +220,46 @@ func (a *App) WriteAppFile() error {
 	}
 
 	fmt.Printf("%s: %d bytes were written to %s\n", exe, n, appFile)
+	return nil
+}
+
+// write the usage func
+func (a *App) WriteUsage() error {
+	_, err := a.buf.WriteString("\n")
+	if err != nil {
+		return fmt.Errorf("usage func: %s", err)
+	}
+
+	cmt := "usage is the usage func for flag.Usage."
+	cmt, err = a.wrapper.Line(cmt)
+	if err != nil {
+		return fmt.Errorf("usage func: %s", err)
+	}
+
+	_, err = a.buf.WriteString(cmt)
+	if err != nil {
+		return fmt.Errorf("usage func: %s", err)
+	}
+
+	_, err = a.buf.WriteString("\nfunc usage() {\n")
+	if err != nil {
+		return fmt.Errorf("usage func: %s", err)
+	}
+
+	_, err = a.buf.WriteString("fmt.Fprint(os.Stderr, \"Usage:\\n\")\nfmt.Fprintf(os.Stderr, \"  %s [FLAGS] \\n\", app)\nfmt.Fprint(os.Stderr, \"\\n\")\n")
+	if err != nil {
+		return fmt.Errorf("usage func: %s", err)
+	}
+
+	_, err = a.buf.WriteString("fmt.Fprintf(os.Stderr, \"Insert information about %s here\\n\", app)\nfmt.Fprint(os.Stderr, \"\\n\")\nfmt.Fprint(os.Stderr, \"Options:\\n\")\nflag.PrintDefaults()\n")
+	if err != nil {
+		return fmt.Errorf("usage func: %s", err)
+	}
+
+	_, err = a.buf.WriteString("}\n\n")
+	if err != nil {
+		return fmt.Errorf("usage func: %s", err)
+	}
 	return nil
 }
 
