@@ -22,6 +22,7 @@ var expectedMain = `package main
 
 import (
 	"flag"
+	"log"
 	"os"
 	"path/filepath"
 )
@@ -35,14 +36,15 @@ type Config struct {
 }
 
 func init() {
-	flag.StringVar(&cfg.LogDst, "logfile", "stderr", "output destination for logs")
+	flag.StringVar(&cfg.LogFile, "logfile", "stderr", "output destination for logs")
 
 	log.SetPrefix(app + ": ")
 }
 
 func main() {
 	// Process flags
-	parseFlags()
+	FlagParse()
+
 	os.Exit(testMain())
 }
 `
@@ -178,21 +180,21 @@ func TestWriteAppFile(t *testing.T) {
 	expected := `package main
 
 import (
+	"flag"
 	"fmt"
-	"log"
 	"os"
 )
 
-// parseFlag handles flag parsing, validation, and any side affects of flag
+// FlagParse handles flag parsing, validation, and any side affects of flag
 // states. Errors or invalid states should result in printing a message to
 // os.Stderr and an os.Exit() with a non-zero int.
-func parseFlag() {
+func FlagParse() {
 	var err error
 
 	flag.Parse()
 
 	if cfg.LogFile != "" && cfg.LogFile != "stdout" { // open the logfile if one is specified
-		cfg.f, err = os.FileOpen(cfg.LogFile, os.O_CREATE|os.O_APPEND|os.O_RDWR, 0664)
+		cfg.f, err = os.OpenFile(cfg.LogFile, os.O_CREATE|os.O_APPEND|os.O_RDWR, 0664)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "%s: open logfile: %s", app, err)
 			os.Exit(1)
@@ -202,7 +204,7 @@ func parseFlag() {
 
 func testMain() int {
 	if cfg.f != nil {
-		defer f.Close() // make sure the logfile is closed if there is one
+		defer cfg.f.Close() // make sure the logfile is closed if there is one
 	}
 
 	fmt.Printf("%s: hello, world\n", app)
@@ -227,7 +229,7 @@ func testMain() int {
 	if len(gots) != len(wants) {
 		t.Errorf("got %d lines; want %d", len(gots), len(wants))
 		t.Errorf("got %q\nwant %q", string(b), expected)
-		return
+		//		return
 	}
 	for i, got := range gots {
 		if got != wants[i] {

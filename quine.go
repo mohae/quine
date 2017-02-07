@@ -104,7 +104,7 @@ func (a *App) WriteMain() error {
 	}
 
 writeMain:
-	_, err := a.buf.WriteString("package main\nimport (\n\"flag\"\n\"path/filepath\"\n\"os\"\n)\n\nvar app = filepath.Base(os.Args[0]) // name of application\n")
+	_, err := a.buf.WriteString("package main\nimport (\n\"flag\"\n\"log\"\n\"path/filepath\"\n\"os\"\n)\n\nvar app = filepath.Base(os.Args[0]) // name of application\n")
 	if err != nil {
 		return err
 	}
@@ -116,13 +116,13 @@ writeMain:
 	}
 
 	// init
-	_, err = a.buf.WriteString("\nfunc init() {\nflag.StringVar(&cfg.LogDst, \"logfile\", \"stderr\", \"output destination for logs\")\n\nlog.SetPrefix(app + \": \")\n}\n")
+	_, err = a.buf.WriteString("\nfunc init() {\nflag.StringVar(&cfg.LogFile, \"logfile\", \"stderr\", \"output destination for logs\")\n\nlog.SetPrefix(app + \": \")\n}\n")
 	if err != nil {
 		return err
 	}
 
 	// main
-	_, err = a.buf.WriteString("\nfunc main() {\n// Process flags\nparseFlags()\nos.Exit(")
+	_, err = a.buf.WriteString("\nfunc main() {\n// Process flags\nFlagParse()\n\nos.Exit(")
 	if err != nil {
 		return err
 	}
@@ -171,12 +171,12 @@ func (a *App) WriteAppFile() error {
 		return fmt.Errorf("%s: %s", appFile, err)
 	}
 
-	_, err = a.buf.WriteString("package main\nimport(\n\"fmt\"\n\"log\"\n\"os\"\n)\n")
+	_, err = a.buf.WriteString("package main\nimport(\n\"flag\"\n\"fmt\"\n\"os\"\n)\n")
 	if err != nil {
 		return err
 	}
 
-	err = a.WriteParseFlag()
+	err = a.WriteFlagParse()
 	if err != nil {
 		return err
 	}
@@ -191,7 +191,7 @@ func (a *App) WriteAppFile() error {
 		return err
 	}
 
-	_, err = a.buf.WriteString("Main() int {\nif cfg.f != nil {\ndefer f.Close() // make sure the logfile is closed if there is one\n}\n\nfmt.Printf(\"%s: hello, world\\n\", app)\n\nreturn 0\n}\n")
+	_, err = a.buf.WriteString("Main() int {\nif cfg.f != nil {\ndefer cfg.f.Close() // make sure the logfile is closed if there is one\n}\n\nfmt.Printf(\"%s: hello, world\\n\", app)\n\nreturn 0\n}\n")
 	if err != nil {
 		return err
 	}
@@ -218,32 +218,32 @@ func (a *App) WriteAppFile() error {
 	return nil
 }
 
-// write the parseFlag func: parseFlag os.Exit's on any error.
-func (a *App) WriteParseFlag() error {
-	cmt := "parseFlag handles flag parsing, validation, and any side affects of flag states. Errors or invalid states should result in printing a message to os.Stderr and an os.Exit() with a non-zero int."
+// write the FlagParse func: parseFlag os.Exit's on any error.
+func (a *App) WriteFlagParse() error {
+	cmt := "FlagParse handles flag parsing, validation, and any side affects of flag states. Errors or invalid states should result in printing a message to os.Stderr and an os.Exit() with a non-zero int."
 	cmt, err := a.wrapper.Line(cmt)
 	if err != nil {
-		return fmt.Errorf("parseFlag func: %s", err)
+		return fmt.Errorf("FlagParse func: %s", err)
 	}
 
 	_, err = a.buf.WriteString(cmt)
 	if err != nil {
-		return fmt.Errorf("parseFlag func: %s", err)
+		return fmt.Errorf("FlagParse func: %s", err)
 	}
 
-	_, err = a.buf.WriteString("\nfunc parseFlag() {\nvar err error\n\nflag.Parse()\n\n")
+	_, err = a.buf.WriteString("\nfunc FlagParse() {\nvar err error\n\nflag.Parse()\n\n")
 	if err != nil {
-		return fmt.Errorf("parseFlag func: %s", err)
+		return fmt.Errorf("FlagParse func: %s", err)
 	}
 
 	// log
-	_, err = a.buf.WriteString("if cfg.LogFile != \"\" && cfg.LogFile != \"stdout\" {  // open the logfile if one is specified\ncfg.f, err = os.FileOpen(cfg.LogFile, os.O_CREATE|os.O_APPEND|os.O_RDWR, 0664)\n")
+	_, err = a.buf.WriteString("if cfg.LogFile != \"\" && cfg.LogFile != \"stdout\" {  // open the logfile if one is specified\ncfg.f, err = os.OpenFile(cfg.LogFile, os.O_CREATE|os.O_APPEND|os.O_RDWR, 0664)\n")
 	if err != nil {
-		return fmt.Errorf("parseFlag func: %s", err)
+		return fmt.Errorf("FlagParse func: %s", err)
 	}
 	_, err = a.buf.WriteString("if err != nil {\nfmt.Fprintf(os.Stderr, \"%s: open logfile: %s\", app, err)\nos.Exit(1)\n}\n}\n}\n")
 	if err != nil {
-		return fmt.Errorf("parseFlag func: %s", err)
+		return fmt.Errorf("FlagParse func: %s", err)
 	}
 
 	return nil
