@@ -253,7 +253,7 @@ func testMain() int {
 	}
 }
 
-func TestReplaceBSD2ClausePlaceholders(t *testing.T) {
+func TestReplaceBSD2ClauseLicensePlaceholders(t *testing.T) {
 	// only test the first line
 	tests := []struct {
 		owner    string
@@ -275,7 +275,7 @@ func TestReplaceBSD2ClausePlaceholders(t *testing.T) {
 	for i, test := range tests {
 		a.Owner = test.owner
 		a.Year = test.year
-		v := a.replaceBSD2ClausePlaceholders(b)
+		v := a.replaceBSD2ClauseLicensePlaceholders(b)
 		ndx := bytes.IndexByte(v, '\n')
 		if ndx < 0 {
 			t.Errorf("%d: expected to find a \n; none found", i)
@@ -288,7 +288,7 @@ func TestReplaceBSD2ClausePlaceholders(t *testing.T) {
 	}
 }
 
-func TestReplaceBSD3ClausePlaceholders(t *testing.T) {
+func TestReplaceBSD3ClauseLicensePlaceholders(t *testing.T) {
 	// only test the first line
 	tests := []struct {
 		owner    string
@@ -310,7 +310,7 @@ func TestReplaceBSD3ClausePlaceholders(t *testing.T) {
 	for i, test := range tests {
 		a.Owner = test.owner
 		a.Year = test.year
-		v := a.replaceBSD3ClausePlaceholders(b)
+		v := a.replaceBSD3ClauseLicensePlaceholders(b)
 		ndx := bytes.IndexByte(v, '\n')
 		if ndx < 0 {
 			t.Errorf("%d: expected to find a \n; none found", i)
@@ -323,7 +323,7 @@ func TestReplaceBSD3ClausePlaceholders(t *testing.T) {
 	}
 }
 
-func TestReplaceMITPlaceholders(t *testing.T) {
+func TestReplaceMITLicensePlaceholders(t *testing.T) {
 	// only test the first line
 	tests := []struct {
 		owner    string
@@ -345,7 +345,7 @@ func TestReplaceMITPlaceholders(t *testing.T) {
 	for i, test := range tests {
 		a.Owner = test.owner
 		a.Year = test.year
-		v := a.replaceMITPlaceholders(b)
+		v := a.replaceMITLicensePlaceholders(b)
 		start := bytes.IndexByte(v, '\n')
 		if start < 0 {
 			t.Errorf("%d: expected to find a \n; none found", i)

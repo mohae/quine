@@ -329,17 +329,17 @@ func (a *App) CopyLicense() error {
 func (a *App) replaceLicensePlaceholders(b []byte) []byte {
 	switch a.License {
 	case BSD2Clause:
-		return a.replaceBSD2ClausePlaceholders(b)
+		return a.replaceBSD2ClauseLicensePlaceholders(b)
 	case BSD3Clause:
-		return a.replaceBSD3ClausePlaceholders(b)
+		return a.replaceBSD3ClauseLicensePlaceholders(b)
 	case MIT:
-		return a.replaceMITPlaceholders(b)
+		return a.replaceMITLicensePlaceholders(b)
 	}
 
 	return b
 }
 
-func (a *App) replaceBSD2ClausePlaceholders(b []byte) []byte {
+func (a *App) replaceBSD2ClauseLicensePlaceholders(b []byte) []byte {
 	// if owner and year aren't set, nothing to do.
 	if a.Owner == "" && a.Year == "" {
 		return b
@@ -377,7 +377,7 @@ func (a *App) replaceBSD2ClausePlaceholders(b []byte) []byte {
 	return out
 }
 
-func (a *App) replaceBSD3ClausePlaceholders(b []byte) []byte {
+func (a *App) replaceBSD3ClauseLicensePlaceholders(b []byte) []byte {
 	// if owner and year aren't set, nothing to do.
 	if a.Owner == "" && a.Year == "" {
 		return b
@@ -415,7 +415,7 @@ func (a *App) replaceBSD3ClausePlaceholders(b []byte) []byte {
 	return out
 }
 
-func (a *App) replaceMITPlaceholders(b []byte) []byte {
+func (a *App) replaceMITLicensePlaceholders(b []byte) []byte {
 	// if owner and year aren't set, nothing to do.
 	if a.Owner == "" && a.Year == "" {
 		return b
