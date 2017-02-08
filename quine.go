@@ -329,7 +329,7 @@ func (a *App) CopyLicense() error {
 func (a *App) replaceLicensePlaceholders(b []byte) []byte {
 	switch a.License {
 	case BSD2Clause:
-		// not implemented yet
+		return a.replaceBSD2ClausePlaceholders(b)
 	case BSD3Clause:
 		return a.replaceBSD3ClausePlaceholders(b)
 	case MIT:
@@ -337,6 +337,44 @@ func (a *App) replaceLicensePlaceholders(b []byte) []byte {
 	}
 
 	return b
+}
+
+func (a *App) replaceBSD2ClausePlaceholders(b []byte) []byte {
+	// if owner and year aren't set, nothing to do.
+	if a.Owner == "" && a.Year == "" {
+		return b
+	}
+
+	// make out == the len of the license when replacements are done
+	y, o := 6, 7 // <year> <owner>
+	if a.Year != "" {
+		y = len(a.Year)
+	}
+	if a.Owner != "" {
+		o = len(a.Owner)
+	}
+
+	out := make([]byte, 0, len(b)-13+y+o)
+	out = append(out, b[:14]...)
+	// year
+	if a.Year == "" {
+		out = append(out, b[14:20]...)
+	} else {
+		out = append(out, []byte(a.Year)...)
+	}
+
+	out = append(out, ' ')
+
+	// owner
+	if a.Owner == "" {
+		out = append(out, b[21:28]...)
+	} else {
+		out = append(out, []byte(a.Owner)...)
+	}
+
+	out = append(out, b[28:]...)
+
+	return out
 }
 
 func (a *App) replaceBSD3ClausePlaceholders(b []byte) []byte {

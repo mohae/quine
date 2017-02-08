@@ -253,7 +253,42 @@ func testMain() int {
 	}
 }
 
-func TestReplaceDSB3ClausePlaceholders(t *testing.T) {
+func TestReplaceBSD2ClausePlaceholders(t *testing.T) {
+	// only test the first line
+	tests := []struct {
+		owner    string
+		year     string
+		expected string
+	}{
+		{"", "", "Copyright (c) <year> <owner> All rights reserved."},
+		{"Zaphod Beeblebrox", "", "Copyright (c) <year> Zaphod Beeblebrox All rights reserved."},
+		{"", "1942", "Copyright (c) 1942 <owner> All rights reserved."},
+		{"Zaphod Beeblebrox", "1942", "Copyright (c) 1942 Zaphod Beeblebrox All rights reserved."},
+	}
+	b, err := ioutil.ReadFile(filepath.Join("license", strings.ToLower(BSD2Clause.ID())))
+	if err != nil {
+		t.Errorf("unexpected error: %q", err)
+		return
+	}
+
+	a := app
+	for i, test := range tests {
+		a.Owner = test.owner
+		a.Year = test.year
+		v := a.replaceBSD2ClausePlaceholders(b)
+		ndx := bytes.IndexByte(v, '\n')
+		if ndx < 0 {
+			t.Errorf("%d: expected to find a \n; none found", i)
+			continue
+		}
+		line := string(v[:ndx])
+		if line != test.expected {
+			t.Errorf("%d: got %q want %q", i, line, test.expected)
+		}
+	}
+}
+
+func TestReplaceBSD3ClausePlaceholders(t *testing.T) {
 	// only test the first line
 	tests := []struct {
 		owner    string
@@ -285,7 +320,6 @@ func TestReplaceDSB3ClausePlaceholders(t *testing.T) {
 		if line != test.expected {
 			t.Errorf("%d: got %q want %q", i, line, test.expected)
 		}
-
 	}
 }
 
