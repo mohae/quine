@@ -78,34 +78,12 @@ func (a *App) Generate() int {
 func (a *App) WriteMain() error {
 	a.buf.Reset()
 
-	// if a license was specified, open its notice file and write it to main.go
-	if a.License != None {
-		noticeFile := filepath.Join(quinePath, licenseDir, strings.ToLower(a.License.ID())+".notice")
-		b, err := ioutil.ReadFile(noticeFile)
-		if err != nil {
-			if os.IsNotExist(err) { // not all licenses have notices
-				goto writeMain
-			}
-			return fmt.Errorf("read %s: %s", noticeFile, err) // return any other error		}
-		}
-		// TODO do element replacement for the notices that have that.
-		a.wrapper.LineComment(true)
-		cmt, err := a.wrapper.Line(string(b))
-		if err != nil {
-			return fmt.Errorf("formatting %s's standard license header as comment: %s", a.License.ID(), err)
-		}
-		_, err = a.buf.WriteString(cmt)
-		if err != nil {
-			return fmt.Errorf("write %s's standard license header comment: %s", err)
-		}
-		_, err = a.buf.WriteString("\n\n")
-		if err != nil {
-			return fmt.Errorf("write %s's standard license header comment: %s", err)
-		}
+	err := a.writeSLH() // write the Standard License Header, if there is one.
+	if err != nil {
+		return err
 	}
 
-writeMain:
-	_, err := a.buf.WriteString("package main\nimport (\n\"flag\"\n\"log\"\n\"path/filepath\"\n\"os\"\n)\n\nvar app = filepath.Base(os.Args[0]) // name of application\n")
+	_, err = a.buf.WriteString("package main\nimport (\n\"flag\"\n\"log\"\n\"path/filepath\"\n\"os\"\n)\n\nvar app = filepath.Base(os.Args[0]) // name of application\n")
 	if err != nil {
 		return err
 	}
@@ -449,6 +427,203 @@ func (a *App) replaceMITLicensePlaceholders(b []byte) []byte {
 	}
 
 	out = append(out, b[53:]...)
+
+	return out
+}
+
+// If a license was specified, open its SLH, Standard License Header, file, if
+// it has one and write it to main.go.
+func (a *App) writeSLH() error {
+	if a.License == None { // if no license is specified nothing to do
+		return nil
+	}
+
+	// read the slh file
+	slhFile := filepath.Join(quinePath, licenseDir, strings.ToLower(a.License.ID())+".slh")
+	b, err := ioutil.ReadFile(slhFile)
+	if err != nil {
+		if os.IsNotExist(err) { // not all licenses have SLHs, this is not an error state
+			return nil
+		}
+		return fmt.Errorf("SLH file: read %s: %s", slhFile, err) // return any other error
+	}
+
+	// MPl-2.0 is used as is.
+	switch a.License {
+	case Apache20:
+		b = a.replaceApache20SLHPlaceholders(b)
+	case GPL20:
+		b = a.replaceGPL20SLHPlaceholders(b)
+	case GPL30:
+		b = a.replaceGPL30SLHPlaceholders(b)
+	case LGPL20, LGPL21: // format and location of the placeholders are the same for both
+		b = a.replaceLGPL2SLHPlaceholders(b)
+	}
+
+	cmt, err := a.wrapper.Line(string(b))
+	if err != nil {
+		return fmt.Errorf("SLH file: format as comment: %s", err)
+	}
+
+	_, err = a.buf.WriteString(cmt)
+	if err != nil {
+		return fmt.Errorf("SLH file: write: %s", err)
+	}
+	_, err = a.buf.WriteString("\n\n")
+	if err != nil {
+		return fmt.Errorf("SLH file: write \n: %s", err)
+	}
+	return nil
+}
+
+func (a *App) replaceApache20SLHPlaceholders(b []byte) []byte {
+	// if owner and year aren't set, nothing to do.
+	if a.Owner == "" && a.Year == "" {
+		return b
+	}
+
+	// make out == the len of the license when replacements are done
+	y, o := 6, 26 // <year> <owner>
+	if a.Year != "" {
+		y = len(a.Year)
+	}
+	if a.Owner != "" {
+		o = len(a.Owner)
+	}
+
+	out := make([]byte, 0, len(b)-33+y+o)
+	out = append(out, b[:10]...)
+	// year
+	if a.Year == "" {
+		out = append(out, b[10:16]...)
+	} else {
+		out = append(out, []byte(a.Year)...)
+	}
+
+	out = append(out, ' ')
+
+	// owner
+	if a.Owner == "" {
+		out = append(out, b[17:42]...)
+	} else {
+		out = append(out, []byte(a.Owner)...)
+	}
+
+	out = append(out, b[42:]...)
+
+	return out
+}
+
+func (a *App) replaceGPL20SLHPlaceholders(b []byte) []byte {
+	// if owner and year aren't set, nothing to do.
+	if a.Owner == "" && a.Year == "" {
+		return b
+	}
+
+	// make out == the len of the license when replacements are done
+	y, o := 4, 14 // yyy name of author
+	if a.Year != "" {
+		y = len(a.Year)
+	}
+	if a.Owner != "" {
+		o = len(a.Owner)
+	}
+
+	out := make([]byte, 0, len(b)-19+y+o)
+	out = append(out, b[:14]...)
+	// year
+	if a.Year == "" {
+		out = append(out, b[14:18]...)
+	} else {
+		out = append(out, []byte(a.Year)...)
+	}
+
+	out = append(out, ' ')
+
+	// owner
+	if a.Owner == "" {
+		out = append(out, b[19:33]...)
+	} else {
+		out = append(out, []byte(a.Owner)...)
+	}
+
+	out = append(out, b[33:]...)
+
+	return out
+}
+
+func (a *App) replaceGPL30SLHPlaceholders(b []byte) []byte {
+	// if owner and year aren't set, nothing to do.
+	if a.Owner == "" && a.Year == "" {
+		return b
+	}
+
+	// make out == the len of the license when replacements are done
+	y, o := 6, 16 // yyy name of author
+	if a.Year != "" {
+		y = len(a.Year)
+	}
+	if a.Owner != "" {
+		o = len(a.Owner)
+	}
+
+	out := make([]byte, 0, len(b)-23+y+o)
+	out = append(out, b[:14]...)
+	// year
+	if a.Year == "" {
+		out = append(out, b[14:20]...)
+	} else {
+		out = append(out, []byte(a.Year)...)
+	}
+
+	out = append(out, ' ')
+
+	// owner
+	if a.Owner == "" {
+		out = append(out, b[21:37]...)
+	} else {
+		out = append(out, []byte(a.Owner)...)
+	}
+
+	out = append(out, b[37:]...)
+
+	return out
+}
+
+func (a *App) replaceLGPL2SLHPlaceholders(b []byte) []byte {
+	// if owner and year aren't set, nothing to do.
+	if a.Owner == "" && a.Year == "" {
+		return b
+	}
+
+	// make out == the len of the license when replacements are done
+	y, o := 4, 14 // yyy name of author
+	if a.Year != "" {
+		y = len(a.Year)
+	}
+	if a.Owner != "" {
+		o = len(a.Owner)
+	}
+
+	out := make([]byte, 0, len(b)-19+y+o)
+	out = append(out, b[:14]...)
+	// year
+	if a.Year == "" {
+		out = append(out, b[14:18]...)
+	} else {
+		out = append(out, []byte(a.Year)...)
+	}
+
+	out = append(out, ' ')
+
+	// owner
+	if a.Owner == "" {
+		out = append(out, b[19:33]...)
+	} else {
+		out = append(out, []byte(a.Owner)...)
+	}
+
+	out = append(out, b[33:]...)
 
 	return out
 }

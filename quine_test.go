@@ -58,30 +58,27 @@ func TestWriteMain(t *testing.T) {
 		expected string
 	}{
 		//{None, ""},
-		{Apache20, `// Copyright [yyyy] [name of copyright owner]
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
+		{Apache20, `// Copyright 1999 Trillian
+// Licensed under the Apache License, Version 2.0 (the "License"); you may not
+// use this file except in compliance with the License. You may obtain a copy
+// of the License at
 //
 // http://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the spec
+// distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+// WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+// License for the specific language governing permissions and limitations
+// under the License.
 //
 
 `,
 		},
 		{BSD3Clause, ""},
-		{GPL20, `// <One line to give the program's name and a brief idea of what it does.>
-// Copyright (C) <year> <name of author>
-//
+		{GPL20, `// Copyright (C) 1999 Trillian
 // This program is free software; you can redistribute it and/or modify it
 // under the terms of the GNU General Public License as published by the Free
-// Software Foundation; either version 2 of the License, or (at your option)
-// any later version.
+// Software Foundation; version 2.
 //
 // This program is distributed in the hope that it will be useful, but WITHOUT
 // ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -89,38 +86,49 @@ func TestWriteMain(t *testing.T) {
 // more details.
 //
 // You should have received a copy of the GNU General Public License along with
-// this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-// Place, Suite 330, Boston, MA 02111-1307 USA
+// this program; if not, write to the Free Software Foundation, Inc., 51
+// Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
 //
 
 `,
 		},
-		{GPL30, `// <one line to give the program's name and a brief idea of what it does.>
-// Copyright (C) <year>  <name of author>
+		{GPL30, `// Copyright (C) 1999 Trillian
+// This program is free software: you can redistribute it and/or modify it
+// under the terms of the GNU General Public License as published by the Free
+// Software Foundation, version.
 //
-// This program is free software: you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
+// This program is distributed in the hope that it will be useful, but WITHOUT
+// ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+// FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
+// more details.
 //
-// This program is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-// GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with this program.  If not, see <http://www.gnu.org/licenses/>.
+// You should have received a copy of the GNU General Public License along with
+// this program. If not, see <http://www.gnu.org/licenses/>.
 //
 
 `,
 		},
-		{LGPL21, `// <one line to give the library's name and an idea of what it does.> Copyright
-// (C) <year> <name of author>
+		{LGPL20, `// Copyright (C) 1999 Trillian
+// This library is free software; you can redistribute it and/or modify it
+// under the terms of the GNU Library General Public License as published by
+// the Free Software Foundation; version 2.
 //
+// This library is distributed in the hope that it will be useful, but WITHOUT
+// ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+// FITNESS FOR A PARTICULAR PURPOSE. See the GNU Library General Public License
+// for more details.
+//
+// You should have received a copy of the GNU Library General Public License
+// along with this library; if not, write to the Free Software Foundation,
+// Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301, USA.
+//
+
+`,
+		},
+		{LGPL21, `// Copyright (C) 1999 Trillian
 // This library is free software; you can redistribute it and/or modify it
 // under the terms of the GNU Lesser General Public License as published by the
-// Free Software Foundation; either version 2.1 of the License, or (at your
-// option) any later version.
+// Free Software Foundation; version 2.1.
 //
 // This library is distributed in the hope that it will be useful, but WITHOUT
 // ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
@@ -129,7 +137,7 @@ func TestWriteMain(t *testing.T) {
 //
 // You should have received a copy of the GNU Lesser General Public License
 // along with this library; if not, write to the Free Software Foundation,
-// Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
+// Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
 //
 
 `,
@@ -360,6 +368,179 @@ func TestReplaceMITLicensePlaceholders(t *testing.T) {
 		end += start
 
 		line := string(v[start:end])
+		if line != test.expected {
+			t.Errorf("%d: got %q want %q", i, line, test.expected)
+		}
+
+	}
+}
+
+func TestReplaceApache20SLHPlaceholders(t *testing.T) {
+	// only test the first line
+	tests := []struct {
+		year     string
+		owner    string
+		expected string
+	}{
+		{"", "", "Copyright [yyyy] [name of copyright owner]"},
+		{"", "Zaphod Beeblebrox", "Copyright [yyyy] Zaphod Beeblebrox"},
+		{"1942", "", "Copyright 1942 [name of copyright owner]"},
+		{"1942", "Zaphod Beeblebrox", "Copyright 1942 Zaphod Beeblebrox"},
+	}
+	b, err := ioutil.ReadFile(filepath.Join("license", strings.ToLower(Apache20.ID())+".slh"))
+	if err != nil {
+		t.Errorf("unexpected error: %q", err)
+		return
+	}
+
+	a := app
+	for i, test := range tests {
+		a.Owner = test.owner
+		a.Year = test.year
+		v := a.replaceApache20SLHPlaceholders(b)
+		ndx := bytes.IndexByte(v, '\n')
+		if ndx < 0 {
+			t.Errorf("%d: expected to find a \n; none found", i)
+			continue
+		}
+
+		line := string(v[:ndx])
+		if line != test.expected {
+			t.Errorf("%d: got %q want %q", i, line, test.expected)
+		}
+
+	}
+}
+
+func TestReplaceGPL20SLHPlaceholders(t *testing.T) {
+	// only test the first line
+	tests := []struct {
+		year     string
+		owner    string
+		expected string
+	}{
+		{"", "", "Copyright (C) yyyy name of author"},
+		{"", "Zaphod Beeblebrox", "Copyright (C) yyyy Zaphod Beeblebrox"},
+		{"1942", "", "Copyright (C) 1942 name of author"},
+		{"1942", "Zaphod Beeblebrox", "Copyright (C) 1942 Zaphod Beeblebrox"},
+	}
+	b, err := ioutil.ReadFile(filepath.Join("license", strings.ToLower(GPL20.ID())+".slh"))
+	if err != nil {
+		t.Errorf("unexpected error: %q", err)
+		return
+	}
+
+	a := app
+	for i, test := range tests {
+		a.Owner = test.owner
+		a.Year = test.year
+		v := a.replaceGPL20SLHPlaceholders(b)
+		ndx := bytes.IndexByte(v, '\n')
+		if ndx < 0 {
+			t.Errorf("%d: expected to find a \n; none found", i)
+			continue
+		}
+
+		line := string(v[:ndx])
+		if line != test.expected {
+			t.Errorf("%d: got %q want %q", i, line, test.expected)
+		}
+
+	}
+}
+
+func TestReplaceGPL30SLHPlaceholders(t *testing.T) {
+	// only test the first line
+	tests := []struct {
+		year     string
+		owner    string
+		expected string
+	}{
+		{"", "", "Copyright (C) <year> <name of author>"},
+		{"", "Zaphod Beeblebrox", "Copyright (C) <year> Zaphod Beeblebrox"},
+		{"1942", "", "Copyright (C) 1942 <name of author>"},
+		{"1942", "Zaphod Beeblebrox", "Copyright (C) 1942 Zaphod Beeblebrox"},
+	}
+	b, err := ioutil.ReadFile(filepath.Join("license", strings.ToLower(GPL30.ID())+".slh"))
+	if err != nil {
+		t.Errorf("unexpected error: %q", err)
+		return
+	}
+
+	a := app
+	for i, test := range tests {
+		a.Owner = test.owner
+		a.Year = test.year
+		v := a.replaceGPL30SLHPlaceholders(b)
+		ndx := bytes.IndexByte(v, '\n')
+		if ndx < 0 {
+			t.Errorf("%d: expected to find a \n; none found", i)
+			continue
+		}
+
+		line := string(v[:ndx])
+		if line != test.expected {
+			t.Errorf("%d: got %q want %q", i, line, test.expected)
+		}
+
+	}
+}
+
+func TestReplaceLGPL2SLHPlaceholders(t *testing.T) {
+	// only test the first line
+	tests := []struct {
+		year     string
+		owner    string
+		expected string
+	}{
+		{"", "", "Copyright (C) year name of author"},
+		{"", "Zaphod Beeblebrox", "Copyright (C) year Zaphod Beeblebrox"},
+		{"1942", "", "Copyright (C) 1942 name of author"},
+		{"1942", "Zaphod Beeblebrox", "Copyright (C) 1942 Zaphod Beeblebrox"},
+	}
+	// LGPL-2.0
+	b, err := ioutil.ReadFile(filepath.Join("license", strings.ToLower(LGPL20.ID())+".slh"))
+	if err != nil {
+		t.Errorf("unexpected error: %q", err)
+		return
+	}
+
+	a := app
+	for i, test := range tests {
+		a.Owner = test.owner
+		a.Year = test.year
+		v := a.replaceLGPL2SLHPlaceholders(b)
+		ndx := bytes.IndexByte(v, '\n')
+		if ndx < 0 {
+			t.Errorf("%d: expected to find a \n; none found", i)
+			continue
+		}
+
+		line := string(v[:ndx])
+		if line != test.expected {
+			t.Errorf("%d: got %q want %q", i, line, test.expected)
+		}
+
+	}
+
+	// LGPL-2.1
+	b, err = ioutil.ReadFile(filepath.Join("license", strings.ToLower(LGPL21.ID())+".slh"))
+	if err != nil {
+		t.Errorf("unexpected error: %q", err)
+		return
+	}
+
+	for i, test := range tests {
+		a.Owner = test.owner
+		a.Year = test.year
+		v := a.replaceLGPL2SLHPlaceholders(b)
+		ndx := bytes.IndexByte(v, '\n')
+		if ndx < 0 {
+			t.Errorf("%d: expected to find a \n; none found", i)
+			continue
+		}
+
+		line := string(v[:ndx])
 		if line != test.expected {
 			t.Errorf("%d: got %q want %q", i, line, test.expected)
 		}
