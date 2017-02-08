@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -149,7 +150,8 @@ func TestWriteMain(t *testing.T) {
 	if err != nil {
 		panic(err)
 	}
-
+	lapp.Owner = "Trillian"
+	lapp.Year = "1999"
 	for i, test := range tests {
 		lapp.License = test.license
 		err = lapp.WriteMain()
@@ -163,8 +165,8 @@ func TestWriteMain(t *testing.T) {
 			t.Errorf("unexpected error readging %s: %q", filepath.Join(lapp.Path, mainFile), err)
 			continue
 		}
-		gots := strings.Split(string(b), "\n")
 		wants := strings.Split(test.expected+expectedMain, "\n")
+		gots := strings.Split(string(b), "\n")
 		if len(gots) != len(wants) {
 			t.Errorf("%d: got %d lines want %d", i, len(gots), len(wants))
 			t.Errorf("%d: got %q\nwant %q", i, string(b), test.expected+expectedMain)
@@ -248,5 +250,85 @@ func testMain() int {
 		if got != wants[i] {
 			t.Errorf("got %q\nwant %q", got, wants[i])
 		}
+	}
+}
+
+func TestReplaceDSB3ClausePlaceholders(t *testing.T) {
+	// only test the first line
+	tests := []struct {
+		owner    string
+		year     string
+		expected string
+	}{
+		{"", "", "Copyright (c) <year> <owner> . All rights reserved."},
+		{"Zaphod Beeblebrox", "", "Copyright (c) <year> Zaphod Beeblebrox. All rights reserved."},
+		{"", "1942", "Copyright (c) 1942 <owner> . All rights reserved."},
+		{"Zaphod Beeblebrox", "1942", "Copyright (c) 1942 Zaphod Beeblebrox. All rights reserved."},
+	}
+	b, err := ioutil.ReadFile(filepath.Join("license", strings.ToLower(BSD3Clause.ID())))
+	if err != nil {
+		t.Errorf("unexpected error: %q", err)
+		return
+	}
+
+	a := app
+	for i, test := range tests {
+		a.Owner = test.owner
+		a.Year = test.year
+		v := a.replaceBSD3ClausePlaceholders(b)
+		ndx := bytes.IndexByte(v, '\n')
+		if ndx < 0 {
+			t.Errorf("%d: expected to find a \n; none found", i)
+			continue
+		}
+		line := string(v[:ndx])
+		if line != test.expected {
+			t.Errorf("%d: got %q want %q", i, line, test.expected)
+		}
+
+	}
+}
+
+func TestReplaceMITPlaceholders(t *testing.T) {
+	// only test the first line
+	tests := []struct {
+		owner    string
+		year     string
+		expected string
+	}{
+		{"", "", "Copyright (c) <year> <copyright holders>"},
+		{"Zaphod Beeblebrox", "", "Copyright (c) <year> Zaphod Beeblebrox"},
+		{"", "1942", "Copyright (c) 1942 <copyright holders>"},
+		{"Zaphod Beeblebrox", "1942", "Copyright (c) 1942 Zaphod Beeblebrox"},
+	}
+	b, err := ioutil.ReadFile(filepath.Join("license", strings.ToLower(MIT.ID())))
+	if err != nil {
+		t.Errorf("unexpected error: %q", err)
+		return
+	}
+
+	a := app
+	for i, test := range tests {
+		a.Owner = test.owner
+		a.Year = test.year
+		v := a.replaceMITPlaceholders(b)
+		start := bytes.IndexByte(v, '\n')
+		if start < 0 {
+			t.Errorf("%d: expected to find a \n; none found", i)
+			continue
+		}
+		start++
+		end := bytes.IndexByte(v[start:], '\n')
+		if end < 0 {
+			t.Errorf("%d: expected to find a \n; none found", i)
+			continue
+		}
+		end += start
+
+		line := string(v[start:end])
+		if line != test.expected {
+			t.Errorf("%d: got %q want %q", i, line, test.expected)
+		}
+
 	}
 }

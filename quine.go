@@ -1,13 +1,14 @@
 package main
 
 import (
+	"bytes"
 	"flag"
 	"fmt"
 	"go/format"
-	"io"
 	"io/ioutil"
 	"log"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 )
@@ -295,28 +296,135 @@ func (a *App) WriteFlagParse() error {
 
 }
 
+// CopyLicense copies the license text. Any placeholders in the text are
+// replaced with the actual value; if applicable.
 func (a *App) CopyLicense() error {
 	lFile := strings.ToLower(a.License.ID())
 
 	srcFile := filepath.Join(quinePath, licenseDir, lFile)
-	src, err := os.Open(srcFile)
+	b, err := ioutil.ReadFile(srcFile)
 	if err != nil {
-		return fmt.Errorf("open source file: %s", err)
+		return fmt.Errorf("reade license file: %s", err)
 	}
-	defer src.Close()
 
-	dstFile := filepath.Join(a.Path, lFile)
+	// if the license has any placeholders replace them with values
+	b = a.replaceLicensePlaceholders(b)
+	dstFile := filepath.Join(a.Path, "LICENSE")
 	dst, err := os.OpenFile(dstFile, os.O_CREATE|os.O_TRUNC|os.O_RDWR, 0664)
 	if err != nil {
 		return fmt.Errorf("open dest. file: %s", err)
 	}
 	defer dst.Close()
 
-	n, err := io.Copy(dst, src)
+	n, err := dst.Write(b)
 	if err != nil {
-		return fmt.Errorf("copy license from %s to %s: %s", srcFile, dstFile, err)
+		return fmt.Errorf("write license to %s: %s", dstFile, err)
 	}
 
 	fmt.Printf("%s copied to %s; %d bytes written\n", app, lFile, dstFile, n)
 	return nil
+}
+
+// not all licenses have placeholders to replace.
+func (a *App) replaceLicensePlaceholders(b []byte) []byte {
+	switch a.License {
+	case BSD2Clause:
+		// not implemented yet
+	case BSD3Clause:
+		return a.replaceBSD3ClausePlaceholders(b)
+	case MIT:
+		return a.replaceMITPlaceholders(b)
+	}
+
+	return b
+}
+
+func (a *App) replaceBSD3ClausePlaceholders(b []byte) []byte {
+	// if owner and year aren't set, nothing to do.
+	if a.Owner == "" && a.Year == "" {
+		return b
+	}
+
+	// make out == the len of the license when replacements are done
+	y, o := 6, 7 // <year> <owner>
+	if a.Year != "" {
+		y = len(a.Year)
+	}
+	if a.Owner != "" {
+		o = len(a.Owner)
+	}
+
+	out := make([]byte, 0, len(b)-13+y+o)
+	out = append(out, b[:14]...)
+	// year
+	if a.Year == "" {
+		out = append(out, b[14:20]...)
+	} else {
+		out = append(out, []byte(a.Year)...)
+	}
+
+	out = append(out, ' ')
+
+	// owner
+	if a.Owner == "" {
+		out = append(out, b[21:29]...)
+	} else {
+		out = append(out, []byte(a.Owner)...)
+	}
+
+	out = append(out, b[29:]...)
+
+	return out
+}
+
+func (a *App) replaceMITPlaceholders(b []byte) []byte {
+	// if owner and year aren't set, nothing to do.
+	if a.Owner == "" && a.Year == "" {
+		return b
+	}
+
+	// make out == the len of the license when replacements are done
+	y, o := 6, 19 // <year> <owner>
+	if a.Year != "" {
+		y = len(a.Year)
+	}
+	if a.Owner != "" {
+		o = len(a.Owner)
+	}
+
+	out := make([]byte, 0, len(b)-25+y+o)
+
+	out = append(out, b[:26]...)
+	// year
+	if a.Year == "" {
+		out = append(out, b[26:32]...)
+	} else {
+		out = append(out, []byte(a.Year)...)
+	}
+
+	out = append(out, ' ')
+	// owner
+	if a.Owner == "" {
+		out = append(out, b[33:52]...)
+	} else {
+		out = append(out, []byte(a.Owner)...)
+	}
+
+	out = append(out, b[53:]...)
+
+	return out
+}
+
+// returns Git's globally configured user.name or an error. This assumes that
+// git is installed.
+func githubUsername() (gituser string, err error) {
+	cmd := exec.Command("git", "config", "--global", "user.name")
+	var buf bytes.Buffer
+	cmd.Stdout = &buf
+	err = cmd.Run()
+	if err != nil {
+		return "", fmt.Errorf("get git global user.name: %s", err)
+	}
+
+	return string(bytes.TrimRight(buf.Bytes(), "\n")), nil
 }
