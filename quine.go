@@ -28,6 +28,8 @@ func parseFlags() {
 		gop := os.Getenv("GOPATH")
 		if gop == "" { // if it wasn't set, use Go's default path (1.8) + src
 			gop = "$HOME/go/src"
+		} else {
+			gop = filepath.Join(gop, "src")
 		}
 		app.Path = filepath.Join(gop, app.Path)
 	}
@@ -101,7 +103,7 @@ func (a *App) WriteMain() error {
 	}
 
 	// main
-	_, err = a.buf.WriteString("\nfunc main() {\nflag.usage = Usage\n\n// Process flags\nFlagParse()\n\nos.Exit(")
+	_, err = a.buf.WriteString("\nfunc main() {\nflag.Usage = usage\n\n// Process flags\nFlagParse()\n\nos.Exit(")
 	if err != nil {
 		return err
 	}
@@ -299,7 +301,7 @@ func (a *App) CopyLicense() error {
 		return fmt.Errorf("write license to %s: %s", dstFile, err)
 	}
 
-	fmt.Printf("%s copied to %s; %d bytes written\n", app, lFile, dstFile, n)
+	fmt.Printf("%s: %s copied to %s; %d bytes written\n", app, lFile, dstFile, n)
 	return nil
 }
 
