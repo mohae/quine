@@ -53,7 +53,6 @@ func init() {
 	flag.StringVar(&license, "license", "", "name of license for the project; use the SPDX short identifier for the language: https://spdx.org/licenses/")
 	flag.StringVar(&licenseDir, "licensedir", licenseDir, "the directory that the licenses are in; this is joined with the quinepath or WD to make the full path to the license directory")
 	flag.StringVar(&app.Path, "path", "", "path of project repo, relative to $GOPATH/src; if empty the WD will be used")
-	flag.StringVar(&quinePath, "quinepath", quinePath, "path for quine application resources; e.g. license")
 	flag.StringVar(&app.Owner, "owner", app.Owner, "name of the copyright owner")
 	flag.StringVar(&app.Year, "year", app.Year, "yyyy for copyright")
 	flag.BoolVar(&app.CmdDir, "cmd", false, "use a cmd directory for package main")
